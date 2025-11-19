@@ -27,13 +27,12 @@ try:
     # PEMBERSIHAN DATA
     df.columns = df.columns.str.strip().str.lower()
 
-    # Normalisasi teks agar konsisten
+    # Normalisasi teks
     text_cols = ["wilayah_domisili", "cabang_olahraga", "jenis_kelamin", "kategori_ketunaan"]
     for col in text_cols:
         if col in df.columns:
             df[col] = df[col].astype(str).str.strip().str.title()
 
-    # Ganti data kosong dengan label default
     df = df.fillna({
         "wilayah_domisili": "Tidak Diketahui",
         "cabang_olahraga": "Tidak Diketahui",
@@ -54,7 +53,6 @@ try:
         default=sorted(df["cabang_olahraga"].unique())
     )
 
-    # Filter data sesuai pilihan (lebih toleran terhadap data kosong)
     df_filtered = df[
         (df["wilayah_domisili"].isin(selected_wilayah) | (df["wilayah_domisili"] == "Tidak Diketahui")) &
         (df["cabang_olahraga"].isin(selected_cabor) | (df["cabang_olahraga"] == "Tidak Diketahui"))
@@ -63,7 +61,6 @@ try:
     # KPI CARDS
     st.markdown("## 📊 Statistik Utama")
     col1, col2, col3, col4 = st.columns(4)
-
     col1.metric("Total Atlet", len(df_filtered))
     col2.metric("Cabang Olahraga", df_filtered["cabang_olahraga"].nunique())
     col3.metric("Kategori Ketunaan", df_filtered["kategori_ketunaan"].nunique())
@@ -71,10 +68,10 @@ try:
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    # VISUALISASI DATA
+    # VISUALISASI
     col1, col2 = st.columns(2)
 
-    # Grafik 1: Jenis Kelamin
+    # Grafik 1
     with col1:
         gender_count = df_filtered["jenis_kelamin"].value_counts().reset_index()
         gender_count.columns = ["Jenis Kelamin", "Jumlah"]
@@ -88,7 +85,7 @@ try:
         fig_gender.update_traces(textinfo='percent+label')
         st.plotly_chart(fig_gender, use_container_width=True)
 
-    # Grafik 2: Cabang Olahraga
+    # Grafik 2
     with col2:
         sport_count = df_filtered["cabang_olahraga"].value_counts().reset_index()
         sport_count.columns = ["Cabang Olahraga", "Jumlah"]
@@ -99,19 +96,15 @@ try:
             title="Jumlah Atlet per Cabang Olahraga",
             color="Cabang Olahraga",
             text_auto=True,
-            color_discrete_sequence=px.colors.qualitative.Set3  
-
+            color_discrete_sequence=px.colors.qualitative.Set3
         )
-        fig_sport.update_layout(xaxis_title=None, yaxis_title="Jumlah Atlet")
         st.plotly_chart(fig_sport, use_container_width=True)
-        st.markdown("")
 
     # KATEGORI & WILAYAH
-    st.markdown("## ♿ Distribusi Berdasarkan Ketunaan dan Wilayah")
+    st.markdown("## Distribusi Berdasarkan Ketunaan dan Wilayah")
 
     col3, col4 = st.columns(2)
 
-    # Grafik 3: Kategori Ketunaan
     with col3:
         dis_count = df_filtered["kategori_ketunaan"].value_counts().reset_index()
         dis_count.columns = ["Kategori Ketunaan", "Jumlah"]
@@ -122,12 +115,9 @@ try:
             title="Atlet Berdasarkan Kategori Ketunaan",
             color="Kategori Ketunaan",
             text_auto=True,
-            color_discrete_sequence=px.colors.qualitative.Vivid
         )
-        fig_dis.update_layout(xaxis_title=None, yaxis_title="Jumlah Atlet")
         st.plotly_chart(fig_dis, use_container_width=True)
 
-    # Grafik 4: Sebaran Wilayah
     with col4:
         wilayah_count = df_filtered["wilayah_domisili"].value_counts().reset_index()
         wilayah_count.columns = ["Wilayah Domisili", "Jumlah"]
@@ -138,21 +128,74 @@ try:
             title="Sebaran Atlet Berdasarkan Wilayah Domisili",
             color="Wilayah Domisili",
             text_auto=True,
-            color_discrete_sequence=px.colors.sequential.Teal_r
+            color_discrete_sequence = px.colors.sequential.Blues_r
+
         )
-        fig_wilayah.update_layout(xaxis_title=None, yaxis_title="Jumlah Atlet")
         st.plotly_chart(fig_wilayah, use_container_width=True)
+
+    # GRAFIK PERIODE DATA (TAHUN)
+    st.markdown("")
+
+    if "periode_data" in df.columns:
+
+        df["periode_data"] = (
+            df["periode_data"]
+            .astype(str)
+            .str.extract(r"(\d{4})")[0]
+            .astype("Int64")
+        )
+
+        df_filtered["periode_data"] = (
+            df_filtered["periode_data"]
+            .astype(str)
+            .str.extract(r"(\d{4})")[0]
+            .astype("Int64")
+        )
+
+        # Hitung jumlah per tahun
+        periode_count = (
+            df_filtered["periode_data"]
+            .dropna()
+            .astype(int)         # ⬅ memastikan tidak ada koma
+            .value_counts()
+            .sort_index()
+            .reset_index()
+        )
+
+        periode_count.columns = ["Periode (Tahun)", "Jumlah Atlet"]
+        periode_count["Jumlah Atlet"] = periode_count["Jumlah Atlet"].astype(int)
+
+        # Plot line chart
+        fig_periode = px.line(
+            periode_count,
+            x="Periode (Tahun)",
+            y="Jumlah Atlet",
+            markers=True,
+            title="Jumlah Atlet per Periode Data (Tahun)",
+        )
+
+        # Custom warna line
+        fig_periode.update_traces(
+            marker=dict(size=8, color="#D21F4B")
+        )
+
+        fig_periode.update_layout(title_x=0.4)
+
+        # Format integer tanpa koma
+        fig_periode.update_xaxes(tickformat="d")
+        fig_periode.update_yaxes(tickformat="d")
+
+        st.plotly_chart(fig_periode, use_container_width=True)
+
+    else:
+        st.info("Kolom 'periode_data' tidak ditemukan di dataset.")
 
     # TABEL DETAIL
     st.markdown("## 📋 Detail Data Atlet")
     st.dataframe(df_filtered, use_container_width=True, height=400)
 
-    # FOOTER
     st.markdown("<hr>", unsafe_allow_html=True)
     st.caption("© Dev Dashboard Atlet Disabilitas — Satu Data Jakarta")
 
-
-# ⚠️ HANDLING FILE ERROR
 except FileNotFoundError:
-    st.error("❌ File 'data-atlet-disabilitas.xlsx' tidak ditemukan di folder proyek.")
-    st.info("Pastikan file berada di direktori yang sama dengan script ini.")
+    st.error("❌ File 'data-atlet-disabilitas.xlsx' tidak ditemukan.")
