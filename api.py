@@ -6,7 +6,7 @@ app = FastAPI(
     title="API Data Atlet Disabilitas DKI Jakarta",
 )
 
-# Izinkan akses dari mana saja (boleh Streamlit / domain lain)
+# Izinkan akses 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -15,13 +15,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ------------------------------
 # LOAD DATA
-# ------------------------------
 def load_data():
     df = pd.read_excel("data-atlet-disabilitas.xlsx")
 
-    # Normalisasi kolom seperti dashboard streamlit
     df.columns = df.columns.str.strip().str.lower()
 
     text_cols = ["wilayah_domisili", "cabang_olahraga", "jenis_kelamin", "kategori_ketunaan"]
@@ -49,9 +46,12 @@ def root():
 def get_all_data():
     try:
         df = load_data()
+        # Tambahkan kolom id berdasarkan index
+        df = df.reset_index().rename(columns={"index": "id"})
         return df.to_dict(orient="records")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/atlet/{row_id}")
 def get_single(row_id: int):
